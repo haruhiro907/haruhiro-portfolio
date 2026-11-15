@@ -261,7 +261,7 @@
   .marquee-track span{padding:0 14px}
   .marquee-track .sep{color:var(--teal);padding:0 2px}
 
-  /* ---------- spotify embed ---------- */
+  /* ---------- spotify / fixed mini player ---------- */
   .spotify-band{padding:clamp(40px,6vh,64px) 0 0}
   .spot-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:16px}
   .spot-head .en{
@@ -270,15 +270,35 @@
   }
   .spot-head .jp{font-weight:700;font-size:14.5px;color:var(--ink-soft)}
   .spot-head .rule{flex:1;height:1.5px;background:var(--line-strong);align-self:center;min-width:24px}
-  .spot-frame{
+  .spot-note{
     border:2px solid var(--line-strong);background:var(--paper-deep);
     box-shadow:10px 12px 0 var(--shadow-soft);
-    padding:clamp(14px,2.4vw,22px);
+    padding:clamp(16px,2.4vw,22px);
+    display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;justify-content:space-between;
   }
-  .spot-frame iframe{display:block;width:100%;height:152px;border:0;border-radius:12px;background:#000}
-  .spot-caption{font-size:12.5px;color:var(--ink-soft);line-height:1.8;margin-top:12px}
-  .spot-caption a{color:var(--teal);font-weight:500}
-  .spot-caption a:hover{text-decoration:underline}
+  .spot-note p{font-size:13.5px;color:var(--ink-soft);line-height:1.8;max-width:62ch}
+  .spot-note p strong{color:var(--ink)}
+  .spot-open{
+    font-family:var(--font-mono);font-size:13px;letter-spacing:.04em;font-weight:500;
+    background:var(--ink);color:var(--paper);text-decoration:none;
+    padding:11px 20px;min-height:44px;display:inline-flex;align-items:center;gap:9px;flex:none;
+    transition:background .25s ease;
+  }
+  .spot-open:hover{background:var(--teal)}
+  .spot-open .arr{color:var(--teal-bright)}
+  /* Fixed mini player: a single official Spotify embed, pinned to
+     the bottom of the viewport and always on screen, so a track
+     change can never pull the page toward it. Dark in both themes
+     to match the player's own surface; nothing is drawn over it. */
+  .mini-player{
+    position:fixed;left:0;right:0;bottom:0;z-index:130;
+    background:#121212;
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    border-top:1px solid rgba(255,255,255,.14);
+    box-shadow:0 -6px 24px rgba(0,0,0,.28);
+  }
+  .mini-player iframe{display:block;width:100%;height:80px;border:0;background:#121212}
+  body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px) + 16px)}
 
   /* ---------- privacy note (footer) ---------- */
   .privacy{
@@ -616,16 +636,16 @@
     <div class="marquee-track" id="marqueeTrack"></div>
   </div>
 
-  <!-- ================= SPOTIFY EMBED ================= -->
+  <!-- ================= MUSIC ================= -->
   <section class="spotify-band wrap" aria-labelledby="spotify-h">
     <div class="spot-head rv">
       <span class="en" id="spotify-h">Music</span>
       <span class="jp">Spotify プレイリスト</span>
       <span class="rule"></span>
     </div>
-    <div class="spot-frame rv">
-      <iframe title="Spotify プレイリスト" src="https://open.spotify.com/embed/playlist/7MDRL4qSyX9sBanWANNC9b" width="100%" height="152" frameBorder="0" allowfullscreen allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-      <p class="spot-caption">再生には Spotify の埋め込みプレイヤーを使用しています。プレイヤーの表示・操作は Spotify の提供する形式のままです。<a href="https://open.spotify.com/playlist/7MDRL4qSyX9sBanWANNC9b" target="_blank" rel="noopener">Spotify で開く ↗</a></p>
+    <div class="spot-note rv">
+      <p><strong>プレイヤーは画面下に固定表示されています。</strong>このページを読みながら、そのまま再生・停止できます。プレイリスト全体は Spotify でも開けます。</p>
+      <a class="spot-open" href="https://open.spotify.com/playlist/7MDRL4qSyX9sBanWANNC9b" target="_blank" rel="noopener">Spotify で開く <span class="arr">↗</span></a>
     </div>
   </section>
 
@@ -893,6 +913,11 @@
   </div>
 </footer>
 
+<!-- ================= FIXED MINI PLAYER ================= -->
+<div class="mini-player" role="region" aria-label="Spotify ミニプレイヤー">
+  <iframe title="Spotify プレイリスト" src="https://open.spotify.com/embed/playlist/7MDRL4qSyX9sBanWANNC9b" width="100%" height="80" frameBorder="0" allowfullscreen allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -1098,136 +1123,6 @@
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-
-  /* ---------- Spotify embed scroll guard v3 ---------- */
-  /* The Spotify embed steals focus when a track changes and the
-     browser scrolls it into view, yanking the reader away from
-     wherever they were reading. v1 keyed on document.activeElement
-     and v2 on the jump's landing position; neither held up on the
-     user's phone. v3 classifies scrolls by their motion pattern
-     instead: a genuine flick is a run of small steps that keep one
-     direction and decay, while an embed jump — arriving with no
-     user input for over a second, finger off the screen — moves
-     the page by more than a quarter of the viewport in a single
-     step. A detected jump opens a 600ms guard window during which
-     every further scroll (the browser may keep easing toward the
-     embed) is snapped straight back to the last legitimate
-     position. On desktop, window blur (the moment the iframe takes
-     focus) additionally snapshots the position and defends it for
-     one second. Anchor navigation and other deliberate scrolls are
-     driven by pointer/keyboard input, so the input timestamps keep
-     them out of the guard's way. The player itself stays
-     completely unmodified. */
-  var spotifyFrame = document.querySelector(".spot-frame iframe");
-  var spotifyBand = document.querySelector(".spotify-band");
-  if (spotifyFrame && spotifyBand){
-    var lastKnownY = window.scrollY || 0;  /* last legitimate position */
-    var lastScrollY = lastKnownY;          /* position at previous scroll event */
-    var lastScrollAt = 0;                  /* time of previous scroll event */
-    var prevStep = 0;                      /* signed size of previous legitimate step */
-    var lastInputAt = 0;                   /* last genuine user input */
-    var touching = false;                  /* finger currently on screen */
-    var guardUntil = 0, guardStartAt = 0, guardY = 0;      /* jump guard window */
-    var blurSnapY = 0, blurSnapAt = 0, blurGuardUntil = 0; /* desktop blur guard */
-    var restoring = false;
-    var restoreTimer = 0;
-
-    function noteInput(){ lastInputAt = Date.now(); }
-    ["touchstart","touchmove","wheel","keydown","pointerdown"].forEach(function(ev){
-      window.addEventListener(ev, noteInput, {passive:true});
-    });
-    window.addEventListener("touchstart", function(){ touching = true; }, {passive:true});
-    window.addEventListener("touchend", function(){ touching = false; noteInput(); }, {passive:true});
-    window.addEventListener("touchcancel", function(){ touching = false; noteInput(); }, {passive:true});
-
-    function snapBack(y){
-      restoring = true;
-      window.scrollTo({top:y, left:0, behavior:"instant"});
-      lastScrollY = y;
-      prevStep = 0;
-      if (restoreTimer) clearTimeout(restoreTimer);
-      restoreTimer = setTimeout(function(){ restoring = false; }, 80);
-    }
-
-    window.addEventListener("scroll", function(){
-      var y = window.scrollY || 0;
-      if (restoring){ lastScrollY = y; return; }  /* own restore: never re-judged */
-      var now = Date.now();
-      var dy = y - lastScrollY;
-      var dt = now - lastScrollAt;
-      lastScrollY = y;
-      lastScrollAt = now;
-      if (dy === 0) return;
-      var sinceInput = now - lastInputAt;
-
-      /* desktop blur guard: defend the snapshot for 1s unless the
-         user has given input since it was taken */
-      if (now < blurGuardUntil){
-        if (lastInputAt > blurSnapAt){ blurGuardUntil = 0; }
-        else if (Math.abs(y - blurSnapY) > 2){ snapBack(blurSnapY); return; }
-      }
-
-      /* jump guard window: keep snapping back until it expires;
-         fresh user input cancels the guard and takes over */
-      if (now < guardUntil){
-        if (lastInputAt > guardStartAt){
-          guardUntil = 0;
-          lastKnownY = y;
-          prevStep = dy;
-        } else {
-          snapBack(guardY);
-        }
-        return;
-      }
-
-      /* jump detection: no recent input, finger off the screen,
-         and a single step larger than a quarter of the viewport */
-      if (!touching && sinceInput >= 1000 &&
-          Math.abs(dy) > window.innerHeight * 0.25 &&
-          Math.abs(y - lastKnownY) > 4){
-        guardY = lastKnownY;
-        guardStartAt = now;
-        guardUntil = now + 600;
-        snapBack(guardY);
-        return;
-      }
-
-      /* legitimate scroll, part 1: driven by recent input */
-      if (sinceInput <= 1000){
-        lastKnownY = y;
-        prevStep = dy;
-        return;
-      }
-      /* legitimate scroll, part 2: the decaying tail of a flick —
-         same direction, no larger than the previous step, steps
-         close together in time. The chain can only start from an
-         input-driven step (prevStep is set only above), so an
-         embed-driven glide never qualifies. */
-      if (prevStep !== 0 && dt <= 200 &&
-          ((dy > 0 && prevStep > 0) || (dy < 0 && prevStep < 0)) &&
-          Math.abs(dy) <= Math.abs(prevStep) * 1.08 + 2){
-        lastKnownY = y;
-        prevStep = dy;
-        return;
-      }
-      /* anything else — small, input-less, pattern-less — leaves
-         lastKnownY untouched and breaks the inertia chain */
-      prevStep = 0;
-    }, {passive:true});
-
-    /* desktop: the iframe taking focus fires window blur — snapshot
-       the position and defend it for one second (the scroll handler
-       above does the defending; input after the snapshot disarms
-       it). A tap on the player itself fires no parent input events,
-       so playing music does not disarm the defence. */
-    window.addEventListener("blur", function(){
-      blurSnapY = window.scrollY || 0;
-      blurSnapAt = Date.now();
-      blurGuardUntil = blurSnapAt + 1000;
-      lastKnownY = blurSnapY;
-      lastScrollY = blurSnapY;
-    });
-  }
 
   window.addEventListener("resize", measure, {passive:true});
 })();
