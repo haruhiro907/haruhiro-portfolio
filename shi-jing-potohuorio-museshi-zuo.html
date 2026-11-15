@@ -275,8 +275,10 @@
   /* Compact player: the official Spotify embed lives inside the
      MUSIC section at 152px tall — current track and artwork only,
      no track list. No border around it: the light frame line read
-     as a white rim floating around the player in both themes, so
-     the embed sits flush in the section. The wrapper still clips
+     as a white rim floating around the player in both themes, and
+     no dark backing behind the iframe either — just the offset
+     shadow the other blocks on the page share, so the player
+     reads as part of the same design. The wrapper still clips
      to the embed's corner radius so no square backing shows at
      the corners, and the iframe is display:block so there is no
      gap under it. */
@@ -286,7 +288,7 @@
     outline:0;
     border-radius:12px;
     overflow:hidden;
-    box-shadow:none;
+    box-shadow:10px 12px 0 var(--shadow-soft);
     background:transparent;
   }
   .spot-player iframe{display:block;width:100%;height:152px;border:0;outline:0;border-radius:12px;background:transparent}
