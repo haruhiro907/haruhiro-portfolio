@@ -1129,6 +1129,48 @@
   }
   requestAnimationFrame(frame);
 
+  /* ---------- Spotify embed scroll guard ---------- */
+  /* The Spotify embed iframe grabs focus when a track changes, and
+     the browser then scrolls it into view — yanking the reader away
+     from wherever they were on the page. Spotify offers no setting
+     to stop this, and the player itself must stay unmodified, so the
+     guard lives entirely on the parent page: it remembers the last
+     position the user was actually reading at, and if a scroll fires
+     with no recent user input while the embed holds focus, it snaps
+     straight back. Genuine user scrolling is never touched. */
+  var spotifyFrame = document.querySelector(".spot-frame iframe");
+  if (spotifyFrame){
+    var guardY = window.scrollY || 0;   /* last position the user settled at */
+    var guardUserAt = 0;                /* timestamp of last user scroll intent */
+    var guardRestoring = false;         /* re-entry flag for our own restore */
+    var guardMarkUser = function(){
+      guardUserAt = Date.now();
+      guardY = window.scrollY || 0;
+    };
+    window.addEventListener("wheel", guardMarkUser, {passive:true});
+    window.addEventListener("touchmove", guardMarkUser, {passive:true});
+    window.addEventListener("keydown", guardMarkUser);
+    window.addEventListener("pointerdown", guardMarkUser);
+    window.addEventListener("scroll", function(){
+      if (guardRestoring) return;
+      var y = window.scrollY || 0;
+      if (Date.now() - guardUserAt < 600){
+        /* user is driving this scroll — follow along, hands off */
+        guardY = y;
+        return;
+      }
+      if (document.activeElement === spotifyFrame && y !== guardY){
+        /* no user input, embed focused: this is the track-change jump */
+        guardRestoring = true;
+        window.scrollTo({top:guardY, left:0, behavior:"instant"});
+        requestAnimationFrame(function(){ guardRestoring = false; });
+        setTimeout(function(){ guardRestoring = false; }, 80);
+      } else {
+        guardY = y;
+      }
+    }, {passive:true});
+  }
+
   window.addEventListener("resize", measure, {passive:true});
 })();
 </script>
