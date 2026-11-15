@@ -556,6 +556,25 @@
     html.js .rv{transform:none}
     .progress{display:none}
   }
+
+  /* ---------- mobile side padding guarantee ---------- */
+  /* The vertical padding on section.block / .spotify-band /
+     footer.site is written as a shorthand on elements that also
+     carry .wrap, so it zeroes the wrapper's horizontal padding:
+     on phones the body text, profile tables and section heads ran
+     edge to edge and the section index ("02") was clipped at the
+     left edge, even though the header kept its padding. Re-assert
+     the 18px side padding at phone widths with selectors that
+     outrank those shorthands. Desktop layout is untouched. */
+  @media (max-width:640px){
+    section.block.wrap,
+    .spotify-band.wrap,
+    footer.site.wrap,
+    .hero.wrap{
+      padding-left:18px;
+      padding-right:18px;
+    }
+  }
 </style>
 </head>
 <body>
