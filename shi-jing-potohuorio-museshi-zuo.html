@@ -263,7 +263,7 @@
   .marquee-track span{padding:0 14px}
   .marquee-track .sep{color:var(--teal);padding:0 2px}
 
-  /* ---------- spotify / fixed mini player ---------- */
+  /* ---------- spotify ---------- */
   .spotify-band{padding:clamp(40px,6vh,64px) 0 0}
   .spot-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:16px}
   .spot-head .en{
@@ -288,19 +288,16 @@
   }
   .spot-open:hover{background:var(--teal)}
   .spot-open .arr{color:var(--teal-bright)}
-  /* Fixed mini player: a single official Spotify embed, pinned to
-     the bottom of the viewport and always on screen, so a track
-     change can never pull the page toward it. Dark in both themes
-     to match the player's own surface; nothing is drawn over it. */
-  .mini-player{
-    position:fixed;left:0;right:0;bottom:0;z-index:130;
+  /* Compact player: the official Spotify embed lives inside the
+     MUSIC section at 152px tall — current track and artwork only,
+     no track list. Framed like the other bordered blocks. */
+  .spot-player{
+    margin-top:18px;
+    border:2px solid var(--line-strong);
+    box-shadow:10px 12px 0 var(--shadow-soft);
     background:#121212;
-    padding-bottom:env(safe-area-inset-bottom,0px);
-    border-top:1px solid rgba(255,255,255,.14);
-    box-shadow:0 -6px 24px rgba(0,0,0,.28);
   }
-  .mini-player iframe{display:block;width:100%;height:80px;border:0;background:#121212}
-  body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px) + 16px)}
+  .spot-player iframe{display:block;width:100%;height:152px;border:0}
 
   /* ---------- privacy note (footer) ---------- */
   .privacy{
@@ -646,8 +643,11 @@
       <span class="rule"></span>
     </div>
     <div class="spot-note rv">
-      <p><strong>プレイヤーは画面下に固定表示されています。</strong>このページを読みながら、そのまま再生・停止できます。プレイリスト全体は Spotify でも開けます。</p>
+      <p><strong>プレイリスト「haruhiro」</strong>を、そのままここで再生できます。曲の一覧は Spotify でも開けます。</p>
       <a class="spot-open" href="https://open.spotify.com/playlist/7MDRL4qSyX9sBanWANNC9b" target="_blank" rel="noopener">Spotify で開く <span class="arr">↗</span></a>
+    </div>
+    <div class="spot-player rv">
+      <iframe title="Spotify プレイリスト" src="https://open.spotify.com/embed/playlist/7MDRL4qSyX9sBanWANNC9b" width="100%" height="152" frameBorder="0" allowfullscreen allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
     </div>
   </section>
 
@@ -914,11 +914,6 @@
     <p>このサイトでは、音楽の再生に Spotify の埋め込みプレイヤーを表示しています。プレイヤーの利用にあたり、Spotify が Cookie 等を利用する場合があります。取得される情報の取り扱いについては、<a href="https://www.spotify.com/jp/legal/privacy-policy/" target="_blank" rel="noopener">Spotify のプライバシーポリシー</a>をご確認ください。また、このサイトから外部サイトへ移動した場合、そのサイトにおける情報の取り扱いは各サイトのポリシーに従います。このサイト自体は、広告の掲載や商品の販売を行っていません。</p>
   </div>
 </footer>
-
-<!-- ================= FIXED MINI PLAYER ================= -->
-<div class="mini-player" role="region" aria-label="Spotify ミニプレイヤー">
-  <iframe title="Spotify プレイリスト" src="https://open.spotify.com/embed/playlist/7MDRL4qSyX9sBanWANNC9b" width="100%" height="80" frameBorder="0" allowfullscreen allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-</div>
 
 <script>
 (function(){
