@@ -272,22 +272,6 @@
   }
   .spot-head .jp{font-weight:700;font-size:14.5px;color:var(--ink-soft)}
   .spot-head .rule{flex:1;height:1.5px;background:var(--line-strong);align-self:center;min-width:24px}
-  .spot-note{
-    border:2px solid var(--line-strong);background:var(--paper-deep);
-    box-shadow:10px 12px 0 var(--shadow-soft);
-    padding:clamp(16px,2.4vw,22px);
-    display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;justify-content:space-between;
-  }
-  .spot-note p{font-size:13.5px;color:var(--ink-soft);line-height:1.8;max-width:62ch}
-  .spot-note p strong{color:var(--ink)}
-  .spot-open{
-    font-family:var(--font-mono);font-size:13px;letter-spacing:.04em;font-weight:500;
-    background:var(--ink);color:var(--paper);text-decoration:none;
-    padding:11px 20px;min-height:44px;display:inline-flex;align-items:center;gap:9px;flex:none;
-    transition:background .25s ease;
-  }
-  .spot-open:hover{background:var(--teal)}
-  .spot-open .arr{color:var(--teal-bright)}
   /* Compact player: the official Spotify embed lives inside the
      MUSIC section at 152px tall — current track and artwork only,
      no track list. Framed like the other bordered blocks. */
@@ -641,10 +625,6 @@
       <span class="en" id="spotify-h">Music</span>
       <span class="jp">Spotify プレイリスト</span>
       <span class="rule"></span>
-    </div>
-    <div class="spot-note rv">
-      <p><strong>プレイリスト「haruhiro」</strong>を、そのままここで再生できます。曲の一覧は Spotify でも開けます。</p>
-      <a class="spot-open" href="https://open.spotify.com/playlist/7MDRL4qSyX9sBanWANNC9b" target="_blank" rel="noopener">Spotify で開く <span class="arr">↗</span></a>
     </div>
     <div class="spot-player rv">
       <iframe title="Spotify プレイリスト" src="https://open.spotify.com/embed/playlist/7MDRL4qSyX9sBanWANNC9b" width="100%" height="152" frameBorder="0" allowfullscreen allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
@@ -1142,6 +1122,175 @@
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+
+  /* ---------- Spotify scroll-jump guard (max configuration) ----------
+     The official embed is left completely untouched. What this guard
+     does is purely on the page side: Spotify's player can, on track
+     change / focus, try to pull itself into view by moving the page
+     scroll. Those moves arrive with no user scroll input behind
+     them, so:
+       a. the scroll position and the time of the last real user
+          scroll input (wheel / touchmove / scroll keys) are tracked
+          continuously;
+       b. a large discontinuous move (>25% of the viewport height)
+          with no input in the last 1000ms is treated as a jump and
+          the previous position is re-asserted with
+          behavior:"instant" on every animation frame for ~800ms,
+          so a retry by the embed loses too;
+       c. when the window blurs or the player iframe becomes
+          document.activeElement (the player took focus), the
+          position is snapshotted and deviations are restored for
+          the following 1s, and the iframe is blurred to drop focus;
+       d. in-page anchor clicks are never fought, and nothing is
+          restored while the player itself is on screen (a jump
+          that lands on a visible player is harmless);
+       e. once the player has been interacted with (iframe focus),
+          the guard strengthens: a lower jump threshold (10% of the
+          viewport) and a longer restore window, on the assumption
+          playback is running and track changes may keep coming. */
+  (function(){
+    var playerWrap = document.querySelector(".spot-player");
+    var playerIframe = playerWrap ? playerWrap.querySelector("iframe") : null;
+    if (!playerWrap) return;
+    function nowMs(){
+      return (window.performance && performance.now) ? performance.now() : Date.now();
+    }
+    var lastY = window.scrollY || window.pageYOffset || 0;
+    var lastInputAt = -100000;
+    var anchorUntil = 0;
+    var engaged = false; /* (e) player operated at least once */
+    var focusSnapshotY = null;
+    var focusGuardUntil = 0;
+    var restoreY = null;
+    var restoreUntil = 0;
+    var restoreLoopRunning = false;
+
+    function markInput(){ lastInputAt = nowMs(); }
+    window.addEventListener("wheel", markInput, {passive:true});
+    window.addEventListener("touchmove", markInput, {passive:true});
+    window.addEventListener("touchstart", markInput, {passive:true});
+    window.addEventListener("pointerdown", markInput, {passive:true});
+    window.addEventListener("mousedown", markInput, {passive:true});
+    window.addEventListener("keydown", function(e){
+      var k = e.key || "";
+      if (k === "ArrowUp" || k === "ArrowDown" || k === "ArrowLeft" || k === "ArrowRight" ||
+          k === "PageUp" || k === "PageDown" || k === "Home" || k === "End" ||
+          k === " " || k === "Spacebar"){
+        markInput();
+      }
+    }, true);
+
+    /* (d) anchor navigation is the visitor's own move: stand down */
+    document.addEventListener("click", function(e){
+      var t = e.target;
+      var a = (t && t.closest) ? t.closest('a[href^="#"]') : null;
+      if (a){
+        anchorUntil = nowMs() + 3000;
+        restoreY = null;
+        restoreUntil = 0;
+        focusGuardUntil = 0;
+      }
+    }, true);
+
+    function playerVisible(){
+      var r = playerWrap.getBoundingClientRect();
+      var vh = window.innerHeight || 0;
+      return r.bottom > 0 && r.top < vh;
+    }
+
+    function restoreLoop(){
+      if (restoreY === null){ restoreLoopRunning = false; return; }
+      if (nowMs() > restoreUntil){ restoreY = null; restoreLoopRunning = false; return; }
+      restoreLoopRunning = true;
+      if (!playerVisible() && nowMs() > anchorUntil){
+        var cur = window.scrollY || window.pageYOffset || 0;
+        if (Math.abs(cur - restoreY) > 1){
+          try{
+            window.scrollTo({top: restoreY, left: window.scrollX || 0, behavior: "instant"});
+          }catch(err){
+            window.scrollTo(window.scrollX || 0, restoreY);
+          }
+          cur = window.scrollY || window.pageYOffset || 0;
+          if (Math.abs(cur - restoreY) > 1){
+            document.documentElement.scrollTop = restoreY;
+          }
+        }
+        lastY = restoreY;
+      } else {
+        lastY = window.scrollY || window.pageYOffset || 0;
+      }
+      requestAnimationFrame(restoreLoop);
+    }
+    function startRestore(y, duration){
+      restoreY = y;
+      restoreUntil = nowMs() + duration;
+      if (!restoreLoopRunning) requestAnimationFrame(restoreLoop);
+    }
+
+    /* (c) focus taken by the player: snapshot + 1s of restoration */
+    function onPlayerFocus(){
+      engaged = true; /* (e) */
+      focusSnapshotY = window.scrollY || window.pageYOffset || 0;
+      focusGuardUntil = nowMs() + 1000;
+      if (!playerVisible() && nowMs() > anchorUntil){
+        startRestore(focusSnapshotY, engaged ? 1200 : 1000);
+      }
+      if (playerIframe){
+        try{ playerIframe.blur(); }catch(err){}
+      }
+      if (document.activeElement && document.activeElement.tagName === "IFRAME"){
+        try{ document.activeElement.blur(); }catch(err){}
+      }
+    }
+    window.addEventListener("blur", function(){
+      focusSnapshotY = window.scrollY || window.pageYOffset || 0;
+      focusGuardUntil = nowMs() + 1000;
+      if (document.activeElement === playerIframe) engaged = true;
+      if (!playerVisible() && nowMs() > anchorUntil){
+        startRestore(focusSnapshotY, engaged ? 1200 : 1000);
+      }
+      if (playerIframe){
+        try{ playerIframe.blur(); }catch(err){}
+      }
+    });
+    if (playerIframe){
+      playerIframe.addEventListener("focus", onPlayerFocus);
+    }
+    /* Poll for the iframe becoming activeElement (focus events on a
+       cross-origin iframe are not reliable in every browser). */
+    setInterval(function(){
+      if (playerIframe && document.activeElement === playerIframe){
+        onPlayerFocus();
+      }
+    }, 100);
+
+    window.addEventListener("scroll", function(){
+      var cur = window.scrollY || window.pageYOffset || 0;
+      var t = nowMs();
+      /* While a restore is being asserted, the loop owns lastY. */
+      if (restoreY !== null && t <= restoreUntil) return;
+      var vh = window.innerHeight || 800;
+      var delta = Math.abs(cur - lastY);
+      var hasRecentInput = (t - lastInputAt) <= 1000;
+      var inAnchor = t <= anchorUntil;
+      if (inAnchor || playerVisible()){
+        lastY = cur;
+        return;
+      }
+      /* (c) inside the post-focus second, any deviation is undone */
+      if (t <= focusGuardUntil && focusSnapshotY !== null && Math.abs(cur - focusSnapshotY) > 1){
+        startRestore(focusSnapshotY, engaged ? 1200 : 800);
+        return;
+      }
+      /* (b)+(e) big discontinuous move with no recent real input */
+      var threshold = engaged ? vh * 0.10 : vh * 0.25;
+      if (!hasRecentInput && delta > threshold){
+        startRestore(lastY, engaged ? 1200 : 800);
+        return;
+      }
+      lastY = cur;
+    }, {passive:true});
+  })();
 
   window.addEventListener("resize", measure, {passive:true});
 })();
