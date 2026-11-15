@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf5ec">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1b1915">
 <title>HARUHIRO — ポートフォリオ</title>
 <meta name="description" content="広島出身、岡山暮らしの学生開発者HARUHIROのポートフォリオ。Androidアプリ Quiet Camera、避難・相互支援アプリ TASUKU、写真アプリ Memoria、9路盤囲碁 ONE MISS Board。">
 <script>
@@ -925,18 +927,40 @@
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
-  /* ---------- dark / light toggle ---------- */
+  /* ---------- dark / light theme ---------- */
+  /* The theme always starts from the device setting
+     (prefers-color-scheme), applied before first paint by the
+     script in <head>. While the page is open it keeps following
+     the device if the OS mode changes — until the visitor uses
+     the header toggle. A manual choice lives only in this view:
+     nothing is written to localStorage or anywhere else, so the
+     next visit starts from the device setting again. */
   var themeToggle = document.getElementById("themeToggle");
+  var themeManual = false;
+  function applyTheme(dark){
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    syncThemeToggle();
+  }
   function syncThemeToggle(){
     var dark = document.documentElement.getAttribute("data-theme") === "dark";
     themeToggle.setAttribute("aria-pressed", dark ? "true" : "false");
     themeToggle.setAttribute("aria-label", dark ? "ライトモードに切り替える" : "ダークモードに切り替える");
   }
   syncThemeToggle();
+  var themeMq = null;
+  try{ themeMq = window.matchMedia("(prefers-color-scheme: dark)"); }catch(e){}
+  if (themeMq){
+    var onSystemThemeChange = function(e){
+      if (themeManual) return;
+      applyTheme(!!e.matches);
+    };
+    if (themeMq.addEventListener) themeMq.addEventListener("change", onSystemThemeChange);
+    else if (themeMq.addListener) themeMq.addListener(onSystemThemeChange);
+  }
   themeToggle.addEventListener("click", function(){
+    themeManual = true;
     var dark = document.documentElement.getAttribute("data-theme") === "dark";
-    document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
-    syncThemeToggle();
+    applyTheme(!dark);
   });
 
   /* ---------- clock (Okayama / JST) ---------- */
